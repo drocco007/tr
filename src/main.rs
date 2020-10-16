@@ -1,16 +1,14 @@
-use std::collections::HashMap;
 use std::io;
 use std::iter::Iterator;
 
+use tr::map_charsets;
 use unicode_reader::CodePoints;
 
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
 
-    let map: HashMap<char, char> = args[1].chars()
-        .zip(args[2].chars())
-        .collect();
+    let map = map_charsets(&args[1], &args[2]);
 
     let stdin = io::stdin();
 
