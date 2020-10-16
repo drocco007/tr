@@ -55,3 +55,12 @@ fn should_map_ascii_to_unicode() {
 
     assert_eq!(&'É', map.get(&'*').unwrap());
 }
+
+
+#[test]
+fn should_extend_set2_to_set1_length() {
+    let map = map_charsets("1234567890", ".");
+
+    assert_eq!(&'.', map.get(&'2').unwrap());
+    assert_eq!(&'.', map.get(&'0').unwrap());
+}
