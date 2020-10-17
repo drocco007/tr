@@ -64,3 +64,69 @@ fn should_extend_set2_to_set1_length() {
     assert_eq!(&'.', map.get(&'2').unwrap());
     assert_eq!(&'.', map.get(&'0').unwrap());
 }
+
+
+#[test]
+fn should_map_escape_in_set1() {
+    let map = map_charsets(r"\a", "@");
+
+    assert_eq!(&'@', map.get(&'\u{07}').unwrap());
+}
+
+
+#[test]
+fn should_map_escapes_in_set1() {
+    let map = map_charsets(r"\n\t\v\b\r", " ");
+
+    assert_eq!(&' ', map.get(&'\u{08}').unwrap());
+    assert_eq!(&' ', map.get(&'\n').unwrap());
+    assert_eq!(&' ', map.get(&'\r').unwrap());
+    assert_eq!(&' ', map.get(&'\t').unwrap());
+    assert_eq!(&' ', map.get(&'\u{0b}').unwrap());
+}
+
+
+#[test]
+fn should_map_escapes_in_mixed_set1() {
+    let map = map_charsets(r" \n\t+/|", "·  _-=");
+
+    assert_eq!(&'·', map.get(&' ').unwrap());
+    assert_eq!(&' ', map.get(&'\n').unwrap());
+    assert_eq!(&' ', map.get(&'\t').unwrap());
+    assert_eq!(&'_', map.get(&'+').unwrap());
+    assert_eq!(&'-', map.get(&'/').unwrap());
+    assert_eq!(&'=', map.get(&'|').unwrap());
+}
+
+
+#[test]
+fn should_map_escape_in_set2() {
+    let map = map_charsets(r"\a", "@");
+
+    assert_eq!(&'@', map.get(&'\u{07}').unwrap());
+}
+
+
+#[test]
+fn should_map_escapes_in_set2() {
+    let map = map_charsets("qwert", r"\n\t\v\b\r");
+
+    assert_eq!(&'\n', map.get(&'q').unwrap());
+    assert_eq!(&'\t', map.get(&'w').unwrap());
+    assert_eq!(&'\u{0b}', map.get(&'e').unwrap());
+    assert_eq!(&'\u{08}', map.get(&'r').unwrap());
+    assert_eq!(&'\r', map.get(&'t').unwrap());
+}
+
+
+#[test]
+fn should_map_escapes_in_mixed_set2() {
+    let map = map_charsets("·^v_-=", r" \n\t+/|");
+
+    assert_eq!(&' ', map.get(&'·').unwrap());
+    assert_eq!(&'\n', map.get(&'^').unwrap());
+    assert_eq!(&'\t', map.get(&'v').unwrap());
+    assert_eq!(&'+', map.get(&'_').unwrap());
+    assert_eq!(&'/', map.get(&'-').unwrap());
+    assert_eq!(&'|', map.get(&'=').unwrap());
+}

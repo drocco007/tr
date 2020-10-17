@@ -13,9 +13,11 @@ use std::collections::HashMap;
 /// assert_eq!(&'x', map.get(&'c').unwrap());
 /// ```
 pub fn map_charsets(set1: &str, set2: &str) -> HashMap<char, char> {
-    set1.chars()
-        .zip(rpad_last(set2, set1.len()).chars())
-        .collect()
+    let (set1, set2) = (unescape(set1), unescape(set2));
+
+    let set2 = rpad_last(&set2, set1.len());
+
+    set1.chars().zip(set2.chars()).collect()
 }
 
 
@@ -46,4 +48,73 @@ pub fn rpad_last<'a>(s: &'a str, n: usize) -> Cow<'a, str> {
     } else {
         s.into()
     }
+}
+
+
+/// Replace escape sequences in s with the corresponding char.
+///
+///    \\     backslash
+///    \a     audible BEL
+///    \b     backspace
+///    \f     form feed
+///    \n     new line
+///    \r     return
+///    \t     horizontal tab
+///    \v     vertical tab
+///
+/// A backslash followed by any other char is replaced with that char; the
+/// backslash is consumed and not reflected in the output.
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!("\n", tr::unescape("\\n"));
+/// assert_eq!("\n", tr::unescape(r"\n"));
+/// assert_eq!("x", tr::unescape(r"\x"));
+/// ```
+pub fn unescape<'a>(s: &'a str) -> Cow<'a, str> {
+    let (mut first, mut rest);
+
+    if let Some(index) = s.find(r"\") {
+        first = &s[..index];
+
+        // index+1 -> skip the backslash
+        rest = &s[index+1..];
+    } else {
+        return s.into();
+    }
+
+    let mut output = String::with_capacity(s.len());
+
+    loop {
+        output.push_str(first);
+
+        let c = &rest[..1];
+
+        // consume the char from the input
+        rest = &rest[1..];
+
+        match c {
+            "a" => output.push_str("\u{07}"),
+            "b" => output.push_str("\u{08}"),
+            "f" => output.push_str("\u{0c}"),
+            "n" => output.push_str("\n"),
+            "r" => output.push_str("\r"),
+            "t" => output.push_str("\t"),
+            "v" => output.push_str("\u{0b}"),
+            _ => output.push_str(c)
+        }
+
+        if let Some(index) = rest.find(r"\") {
+            first = &rest[..index];
+
+            // skip the backslash
+            rest = &rest[index+1..];
+        } else {
+            output.push_str(rest);
+            break;
+        }
+    }
+
+    output.into()
 }
