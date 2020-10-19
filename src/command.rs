@@ -16,7 +16,7 @@ pub struct Config {
     pub truncate: bool,
     pub set1: String,
     pub set2: String,
-    pub extra_args: Vec<String>,
+    pub first_extra_arg: String,
 }
 
 
@@ -118,26 +118,24 @@ where
                 state = Set2Written;
             },
             Set2Written => {
-                config.extra_args = vec![arg.to_owned()];
+                config.first_extra_arg = arg.to_owned();
                 state = ExtraArgs;
+                break;
             },
-            ExtraArgs => {
-                config.extra_args.push(arg.to_owned());
-            }
+            ExtraArgs => unreachable!()
         }
     }
 
     // validate coherence of final configuration
     match state {
         ExtraArgs => {
-            let message = format!("extra operand ‘{}’", config.extra_args[0]);
-            Err(message)
+            Err(format!("extra operand ‘{}’", config.first_extra_arg))
         },
         ParseOptionsAndSet1 => {
             Err("missing operand".to_owned())
         },
         Set1Written => {
-            // squeeze AND delete requires set2
+            // squeeze OR delete Ok, squeeze AND delete requires set2
             match config.squeeze ^ config.delete {
                 true => Ok(config),
                 false => Err(format!("missing operand after ‘{}’", config.set1))
