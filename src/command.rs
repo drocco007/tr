@@ -1,6 +1,3 @@
-use std::borrow::Cow;
-
-
 enum ParseState {
     SkipProgname,
     ParseOptionsAndSet1,
@@ -40,7 +37,7 @@ pub struct Config {
 ///
 ///    tr '-' '*'
 ///
-fn parse_option<'a>(config: &mut Config, arg: &str) -> Result<ParseState, Cow<'a, str>> {
+fn parse_option<'a>(config: &mut Config, arg: &str) -> Result<ParseState, String> {
     use ParseState::*;
 
     let mut result = Ok(ParseOptionsAndSet1);
@@ -55,7 +52,7 @@ fn parse_option<'a>(config: &mut Config, arg: &str) -> Result<ParseState, Cow<'a
             "--delete" => config.delete = true,
             "--squeeze-repeats" => config.squeeze = true,
             "--truncate-set1" => config.truncate = true,
-            _ => result = Err(Cow::Owned(format!("unrecognized option '{}'", arg)))
+            _ => result = Err(format!("unrecognized option '{}'", arg))
         }
     } else if is_switch {
         for c in arg[1..].chars() {
@@ -65,7 +62,7 @@ fn parse_option<'a>(config: &mut Config, arg: &str) -> Result<ParseState, Cow<'a
                 's' => config.squeeze = true,
                 't' => config.truncate = true,
                 _ => {
-                    result = Err(Cow::Owned(format!("invalid option -- '{}'", c)));
+                    result = Err(format!("invalid option -- '{}'", c));
                     break;
                 }
             }
@@ -88,7 +85,7 @@ fn parse_option<'a>(config: &mut Config, arg: &str) -> Result<ParseState, Cow<'a
 ///
 /// Returns Err("message") on encountering an unrecognized option or if
 /// the combined arguments do not make sense.
-pub fn parse_args<'a, I>(args: I) -> Result<Config, Cow<'a, str>>
+pub fn parse_args<'a, I>(args: I) -> Result<Config, String>
 where
     I: IntoIterator,
     I::Item: AsRef<str>
@@ -134,16 +131,16 @@ where
     match state {
         ExtraArgs => {
             let message = format!("extra operand ‘{}’", config.extra_args[0]);
-            Err(Cow::Owned(message))
+            Err(message)
         },
         ParseOptionsAndSet1 => {
-            Err(Cow::Borrowed("missing operand"))
+            Err("missing operand".to_owned())
         },
         Set1Written => {
             // squeeze AND delete requires set2
             match config.squeeze ^ config.delete {
                 true => Ok(config),
-                false => Err(Cow::Owned(format!("missing operand after ‘{}’", config.set1)))
+                false => Err(format!("missing operand after ‘{}’", config.set1))
             }
         },
         _ => Ok(config)
