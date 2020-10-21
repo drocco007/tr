@@ -1,6 +1,7 @@
 use unicode_reader::CodePoints;
 
-use crate::parser::{Config, map_charsets};
+use crate::arg_parser::Config;
+use crate::parser::map_charsets;
 
 
 pub fn show_help() {

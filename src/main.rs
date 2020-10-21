@@ -1,5 +1,5 @@
 use tr::command::{show_help, show_version, translate};
-use tr::parser::parse_args;
+use tr::arg_parser::parse_args;
 
 
 fn main() {
