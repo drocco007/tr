@@ -1,4 +1,4 @@
-use tr::command::parse_args;
+use tr::parser::parse_args;
 
 
 #[test]

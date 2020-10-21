@@ -1,4 +1,4 @@
-use tr::map_charsets;
+use tr::parser::map_charsets;
 
 
 #[test]

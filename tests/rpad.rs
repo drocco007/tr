@@ -1,4 +1,4 @@
-use tr::rpad_last;
+use tr::parser::rpad_last;
 
 
 #[test]

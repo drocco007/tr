@@ -1,4 +1,4 @@
-use tr::unescape;
+use tr::parser::unescape;
 
 
 #[test]

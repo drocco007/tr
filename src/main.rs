@@ -1,7 +1,5 @@
-use unicode_reader::CodePoints;
-
-use tr::map_charsets;
-use tr::command::parse_args;
+use tr::command::{show_help, show_version, translate};
+use tr::parser::parse_args;
 
 
 fn main() {
@@ -13,17 +11,13 @@ fn main() {
         Ok(config) => config
     };
 
-    let map = map_charsets(&config.set1, &config.set2);
-
-    let stdin = std::io::stdin();
-
-    let input = CodePoints::from(stdin.lock());
-
-    for c in input {
-        let c = c.unwrap();
-
-        let c = map.get(&c).unwrap_or(&c);
-
-        print!("{}", c);
+    if config.help_requested {
+        show_help();
+    } else if config.version_requested {
+        show_version();
+    } else {
+        translate(&config);
     }
+
+    std::process::exit(0);
 }
