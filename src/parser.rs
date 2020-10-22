@@ -51,7 +51,8 @@ pub fn rpad_last<'a>(s: &'a str, n: usize) -> Cow<'a, str> {
 }
 
 
-/// Replace escape sequences in s with the corresponding char.
+/// Replace escape sequence with the corresponding char. s is assumed to
+/// be a 2 character string
 ///
 ///    \\     backslash
 ///    \a     audible BEL
@@ -68,18 +69,30 @@ pub fn rpad_last<'a>(s: &'a str, n: usize) -> Cow<'a, str> {
 /// # Examples
 ///
 /// ```
-/// assert_eq!("\n", tr::parser::parse("\\n"));
-/// assert_eq!("\n", tr::parser::parse(r"\n"));
-/// assert_eq!("x", tr::parser::parse(r"\x"));
+/// assert_eq!("\n", tr::parser::unescape("\\n"));
+/// assert_eq!("\n", tr::parser::unescape(r"\n"));
+/// assert_eq!("x", tr::parser::unescape(r"\x"));
 /// ```
+pub fn unescape(s: &str) -> &str {
+    match s {
+        r"\a" => "\u{07}",
+        r"\b" => "\u{08}",
+        r"\f" => "\u{0c}",
+        r"\n" => "\n",
+        r"\r" => "\r",
+        r"\t" => "\t",
+        r"\v" => "\u{0b}",
+        _ => &s[1..]
+    }
+}
+
+
 pub fn parse<'a>(s: &'a str) -> Cow<'a, str> {
     let (mut first, mut rest);
 
     if let Some(index) = s.find(r"\") {
         first = &s[..index];
-
-        // index+1 -> skip the backslash
-        rest = &s[index+1..];
+        rest = &s[index..];
     } else {
         return s.into();
     }
@@ -89,27 +102,16 @@ pub fn parse<'a>(s: &'a str) -> Cow<'a, str> {
     loop {
         output.push_str(first);
 
-        let c = &rest[..1];
+        let c = &rest[..2];
 
         // consume the char from the input
-        rest = &rest[1..];
+        rest = &rest[2..];
 
-        match c {
-            "a" => output.push_str("\u{07}"),
-            "b" => output.push_str("\u{08}"),
-            "f" => output.push_str("\u{0c}"),
-            "n" => output.push_str("\n"),
-            "r" => output.push_str("\r"),
-            "t" => output.push_str("\t"),
-            "v" => output.push_str("\u{0b}"),
-            _ => output.push_str(c)
-        }
+        output.push_str(unescape(c));
 
         if let Some(index) = rest.find(r"\") {
             first = &rest[..index];
-
-            // skip the backslash
-            rest = &rest[index+1..];
+            rest = &rest[index..];
         } else {
             output.push_str(rest);
             break;

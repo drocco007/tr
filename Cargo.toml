@@ -8,3 +8,7 @@ edition = "2018"
 
 [dependencies]
 unicode_reader = "1.0.1"
+
+
+[dev-dependencies]
+rstest = "0.6.4"
