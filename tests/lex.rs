@@ -1,6 +1,7 @@
 use rstest::rstest;
 
 use tr::lex::tokenize;
+use tr::lex::TokenType::{*};
 
 
 #[test]
@@ -17,7 +18,17 @@ fn tokenizer_should_be_iterator() {
 fn tokenizer_should_return_single_literal(s: &str) {
     let mut tokens = tokenize(s);
 
-    assert_eq!(tokens.next().unwrap(), s);
+    assert_eq!(tokens.next().unwrap().token, s);
+}
+
+
+#[rstest(
+    s => ["a", "z", "1", "\\"]
+)]
+fn single_literal_should_be_of_type_literal(s: &str) {
+    let mut tokens = tokenize(s);
+
+    assert_eq!(tokens.next().unwrap().token_type, Literal);
 }
 
 
@@ -38,7 +49,17 @@ fn single_literal_should_end_token_stream(s: &str) {
 fn tokenizer_should_return_string_literal(s: &str) {
     let mut tokens = tokenize(s);
 
-    assert_eq!(tokens.next().unwrap(), s);
+    assert_eq!(tokens.next().unwrap().token, s);
+}
+
+
+#[rstest(
+    s => ["qwert", "yuiop", "0xdeadbeef", "#334455"]
+)]
+fn string_literal_should_be_of_type_literal(s: &str) {
+    let mut tokens = tokenize(s);
+
+    assert_eq!(tokens.next().unwrap().token_type, Literal);
 }
 
 
@@ -60,8 +81,10 @@ fn string_literal_should_end_token_stream(s: &str) {
 )]
 fn pseudo_repeats_and_classes_should_be_treated_as_literals(s: &str) {
     let mut tokens = tokenize(s);
+    let token = tokens.next().unwrap();
 
-    assert_eq!(tokens.next().unwrap(), s);
+    assert_eq!(token.token, s);
+    assert_eq!(token.token_type, Literal);
 }
 
 
@@ -71,7 +94,17 @@ fn pseudo_repeats_and_classes_should_be_treated_as_literals(s: &str) {
 fn tokenizer_should_return_initial_backslash_escape(s: &str) {
     let mut tokens = tokenize(s);
 
-    assert_eq!(tokens.next().unwrap(), s);
+    assert_eq!(tokens.next().unwrap().token, s);
+}
+
+
+#[rstest(
+    s => [r"\\", r"\a", r"\b", r"\f", r"\n", r"\r", r"\t", r"\v"]
+)]
+fn initial_backslash_escape_should_be_of_type_backslash(s: &str) {
+    let mut tokens = tokenize(s);
+
+    assert_eq!(tokens.next().unwrap().token_type, BackslashEscape);
 }
 
 
@@ -86,11 +119,50 @@ fn initial_backslash_escape_should_end_token_stream(s: &str) {
 }
 
 
+#[rstest(
+    s => [r"\0", r"\00", r"\012", r"\141", r"\177"],
+    prefix => ["", "asdf", "0-9"],
+    suffix => ["", "uiop", "\\n"],
+)]
+fn should_tokenize_octal_escape(s: &str, prefix: &str, suffix: &str) {
+    let stream = format!("{}{}{}", prefix, s, suffix);
+
+    for token in tokenize(&stream) {
+        if token.token == s {
+            assert_eq!(token.token_type, OctalEscape);
+            return;
+        }
+    }
+
+    panic!("Token '{:?}' not found in stream!", s);
+}
+
+
+#[test]
+fn complicated_octal_parsing_scenario() {
+    let s = "\\0asdf[:xdigi:]jkl\\01\\012\\0123\\9\\09\\019[::]X-";
+
+    let result = tokenize(s).map(|t| t.token).collect::<Vec<&str>>();
+    let expected = vec!["\\0", "asdf[:xdigi:]jkl", "\\01", "\\012", "\\012",
+                        "3", "\\9", "\\0", "9", "\\01", "9[::]X-"];
+
+    assert_eq!(result, expected);
+}
+
+
 #[test]
 fn solo_range_should_tokenize_togther() {
     let mut tokens = tokenize("a-z");
 
-    assert_eq!(tokens.next().unwrap(), "a-z");
+    assert_eq!(tokens.next().unwrap().token, "a-z");
+}
+
+
+#[test]
+fn solo_range_should_have_type_range() {
+    let mut tokens = tokenize("a-z");
+
+    assert_eq!(tokens.next().unwrap().token_type, CharRange);
 }
 
 
@@ -98,7 +170,7 @@ fn solo_range_should_tokenize_togther() {
 fn inital_range_should_tokenize_togther() {
     let mut tokens = tokenize("a-z0-");
 
-    assert_eq!(tokens.next().unwrap(), "a-z");
+    assert_eq!(tokens.next().unwrap().token, "a-z");
 }
 
 
@@ -106,8 +178,18 @@ fn inital_range_should_tokenize_togther() {
 fn final_range_should_tokenize_togther() {
     let mut tokens = tokenize("asdfqwert0-9");
 
-    assert_eq!(tokens.next().unwrap(), "asdfqwert");
-    assert_eq!(tokens.next().unwrap(), "0-9");
+    assert_eq!(tokens.next().unwrap().token, "asdfqwert");
+    assert_eq!(tokens.next().unwrap().token, "0-9");
+}
+
+
+#[test]
+fn final_range_should_have_type_range() {
+    let mut tokens = tokenize("asdfqwert0-9");
+
+    tokens.next();
+
+    assert_eq!(tokens.next().unwrap().token_type, CharRange);
 }
 
 
@@ -115,39 +197,162 @@ fn final_range_should_tokenize_togther() {
 fn interior_range_should_tokenize_togther() {
     let mut tokens = tokenize("asdfqwert0-9uiop");
 
-    assert_eq!(tokens.next().unwrap(), "asdfqwert");
-    assert_eq!(tokens.next().unwrap(), "0-9");
-    assert_eq!(tokens.next().unwrap(), "uiop");
+    assert_eq!(tokens.next().unwrap().token, "asdfqwert");
+
+    let token = tokens.next().unwrap();
+
+    assert_eq!(token.token, "0-9");
+    assert_eq!(token.token_type, CharRange);
+
+    assert_eq!(tokens.next().unwrap().token, "uiop");
 }
 
 
 #[test]
 fn dangling_open_bracket_followed_by_legitimate_range() {
-    let tokens = tokenize("[fq-z").collect::<Vec<&str>>();
+    let mut tokens = tokenize("[fq-z");
 
-    assert_eq!(tokens, vec!["[f", "q-z"]);
+    let token = tokens.next().unwrap();
+
+    assert_eq!(token.token, "[f");
+    assert_eq!(token.token_type, Literal);
+
+    let token = tokens.next().unwrap();
+
+    assert_eq!(token.token, "q-z");
+    assert_eq!(token.token_type, CharRange);
+}
+
+
+#[rstest(
+    s => ["c", "1", "-", "*"],
+    prefix => ["", "asdf", "0-9"],
+    suffix => ["", "uiop", "\\n"],
+)]
+fn should_tokenize_repeat(s: &str, prefix: &str, suffix: &str) {
+    let target = format!("[{}*]", s);
+    let s = format!("{}{}{}", prefix, target, suffix);
+
+    for token in tokenize(&s) {
+        if token.token == target {
+            assert_eq!(token.token_type, CharRepeat);
+            return;
+        }
+    }
+
+    panic!("");
+}
+
+
+#[rstest(
+    len => ["1", "22", "333", "4444"]
+)]
+fn should_tokenize_repeat_with_length(len: &str) {
+    let target = format!("[q*{}]", len);
+    let token = tokenize(&target).next().unwrap();
+
+    assert_eq!(token.token, target);
+    assert_eq!(token.token_type, CharRepeat);
+}
+
+
+#[test]
+fn tr_actual_treats_repeat_with_cardinality_zero_as_repeat() {
+    let token = tokenize("[.*0]").next().unwrap();
+
+    assert_eq!(token.token_type, CharRepeat);
+}
+
+
+#[rstest(
+    s => ["c", "1", "-", "*"],
+    prefix => ["", "asdf", "0-9"],
+    suffix => ["", "uiop", "\\n"],
+)]
+fn should_tokenize_equivalence(s: &str, prefix: &str, suffix: &str) {
+    let target = format!("[={}=]", s);
+    let s = format!("{}{}{}", prefix, target, suffix);
+
+    for token in tokenize(&s) {
+        if token.token == target {
+            assert_eq!(token.token_type, Equivalence);
+            return;
+        }
+    }
+
+    panic!("");
+}
+
+
+#[rstest(
+    s => ["[:alnum:]", "[:alpha:]", "[:blank:]", "[:cntrl:]", "[:digit:]",
+          "[:graph:]", "[:lower:]", "[:print:]", "[:punct:]", "[:space:]",
+          "[:upper:]", "[:xdigit:]"],
+    prefix => ["", "asdf", "0-9"],
+    suffix => ["", "uiop", "\\n"],
+)]
+fn should_tokenize_class(s: &str, prefix: &str, suffix: &str) {
+    let stream = format!("{}{}{}", prefix, s, suffix);
+
+    for token in tokenize(&stream) {
+        if token.token == s {
+            assert_eq!(token.token_type, CharClass);
+            return;
+        }
+    }
+
+    panic!("");
+}
+
+
+#[test]
+#[ignore]  // oh brother…
+fn escape_sequence_should_be_valid_equivalence_char() {
+    let token = tokenize("[=\\n=]").next().unwrap();
+
+    assert_eq!(token.token_type, Equivalence);
+}
+
+
+#[test]
+#[ignore]  // oh brother…
+fn octal_escape_sequence_should_be_valid_equivalence_char() {
+    let token = tokenize("[=\\012=]").next().unwrap();
+
+    assert_eq!(token.token_type, Equivalence);
+}
+
+
+#[test]
+fn should_treat_empty_equivalence_as_literal() {
+    let token = tokenize("[==]").next().unwrap();
+
+    assert_eq!(token.token, "[==]");
+    assert_eq!(token.token_type, Literal);
 }
 
 
 #[test]
 fn complicated_scenario() {
     let s = "\\0ab[=c=]def[.*]as[d*20][**][:*30][fq-z0-9]\\tX-";
-    let result = tokenize(s).collect::<Vec<&str>>();
-    let expected = vec!["\\0", "ab", "[=c=]", "def", "[.*]", "as", "[d*20]",
-                        "[**]", "[:*30]", "[f", "q-z", "0-9", "]", "\\t",
-                        "X-"];
 
-    assert_eq!(result, expected);
-}
+    let (tokens, token_types): (Vec<_>, Vec<_>) =
+        tokenize(s)
+        .map(|t| (t.token, t.token_type))
+        .unzip();
 
+    let expected = vec![
+        "\\0", "ab", "[=c=]", "def", "[.*]", "as",
+        "[d*20]", "[**]", "[:*30]", "[f", "q-z", "0-9",
+        "]", "\\t", "X-"
+    ];
 
-#[test]
-fn complicated_octal_parsing_scenario() {
-    let s = "\\0asdf[:xdigi:]jkl\\01\\012\\0123\\9\\09\\019[::]X";
+    let expected_types = vec![
+        OctalEscape, Literal, Equivalence, Literal, CharRepeat, Literal,
+        CharRepeat, CharRepeat, CharRepeat, Literal, CharRange, CharRange,
+        Literal, BackslashEscape, Literal
+    ];
 
-    let result = tokenize(s).collect::<Vec<&str>>();
-    let expected = vec!["\\0", "asdf[:xdigi:]jkl", "\\01", "\\012", "\\012",
-                        "3", "\\9", "\\0", "9", "\\01", "9[::]X"];
-
-    assert_eq!(result, expected);
+    assert_eq!(tokens, expected);
+    assert_eq!(token_types, expected_types);
 }
