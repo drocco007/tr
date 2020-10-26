@@ -1,10 +1,7 @@
-use std::borrow::Cow;
-
-
 #[derive(Debug)]
 pub struct Lexer<'a> {
     s: &'a str,
-    next_token: Option<Token>,
+    tokens: Vec<Token>,
 }
 
 
@@ -32,21 +29,40 @@ impl Token {
 }
 
 
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Token> {
+        if !self.tokens.is_empty() {
+            return Some(self.tokens.remove(0));
+        } else if self.s.is_empty() {
+            return None;
+        } else {
+            self.scan();
+            return self.next();
+        }
+    }
+}
+
+
 impl<'a> Lexer<'a> {
-    fn _find_next(&mut self) -> Option<Token> {
-        let mut result = Token::new(TokenType::Literal, self.s);
+    fn emit(&mut self, token: Token) {
+        self.tokens.push(token);
+    }
+
+    fn scan(&mut self) {
         let mut consumed = 0;
 
         for (i, c) in self.s.chars().enumerate() {
             match c {
                 '\\' => {
-                    if i == 0 {
-                        let (token, token_type, length) = _tokenize_backslash(self.s);
-                        result = Token::new(token_type, token);
-                        consumed = length;
-                    } else {
-                        result = Token::new(TokenType::Literal, &self.s[..i]);
+                    if i != 0 {
+                        self.emit(Token::new(TokenType::Literal, &self.s[..i]));
                     }
+
+                    let (token, length) = _tokenize_backslash(&self.s[i..]);
+                    self.emit(token);
+                    consumed = i+length;
 
                     break;
                 },
@@ -54,27 +70,30 @@ impl<'a> Lexer<'a> {
                     if i == 0 || i == self.s.len() - 1 {
                         consumed += 1;
                         continue;
-                    } else if i == 1 {
-                        result = Token::new(TokenType::CharRange, &self.s[..i+2]);
-                        consumed += 2;
-                    } else {
-                        result = Token::new(TokenType::Literal, &self.s[..i-1]);
-                        self.next_token = Some(Token::new(TokenType::CharRange, &self.s[i-1..i+2]));
-                        consumed += 2;
                     }
+
+                    if i != 1 {
+                        self.emit(Token::new(TokenType::Literal, &self.s[..i-1]));
+                    }
+
+                    self.emit(Token::new(TokenType::CharRange, &self.s[i-1..i+2]));
+                    consumed += 2;
 
                     break;
                 },
                 '[' => {
-                    if let Some((j, token_type)) = _is_equivalence(&self.s[i..]).or_else(|| _is_repeat(&self.s[i..])).or_else(|| _is_class(&self.s[i..])) {
-                        if i == 0 {
-                            result = Token::new(token_type, &self.s[..j]);
-                        } else {
-                            result = Token::new(TokenType::Literal, &self.s[..i]);
-                            self.next_token = Some(Token::new(token_type, &self.s[i..i+j]));
+                    let success = _is_equivalence(&self.s[i..])
+                        .or_else(|| _is_repeat(&self.s[i..]))
+                        .or_else(|| _is_class(&self.s[i..]));
+
+                    if let Some((token, j)) = success {
+                        if i != 0 {
+                            self.emit(Token::new(TokenType::Literal, &self.s[..i]));
                         }
 
+                        self.emit(token);
                         consumed += j;
+
                         break;
                     } else {
                         consumed += 1;
@@ -84,36 +103,25 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        self.s = &self.s[consumed..];
-
-        Some(result)
-    }
-}
-
-
-impl<'a> Iterator for Lexer<'a> {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Token> {
-        if self.next_token != None {
-            return std::mem::replace(&mut self.next_token, None);
-        } else if self.s.is_empty() {
-            return None;
-        } else {
-            return self._find_next();
+        if self.tokens.is_empty() {
+            self.emit(Token::new(TokenType::Literal, self.s));
         }
+
+        self.s = &self.s[consumed..];
     }
 }
 
 
-fn _is_repeat(s: &str) -> Option<(usize, TokenType)> {
+fn _is_repeat(s: &str) -> Option<(Token, usize)> {
+    use TokenType::{CharRepeat};
+
     if s.len() < 4 || &s[2..3] != "*" {
         return None;
     }
 
     for (i, c) in s[3..].chars().enumerate() {
         match c {
-            ']' => { return Some((i + 4, TokenType::CharRepeat)); },
+            ']' => { return Some((Token::new(CharRepeat, &s[..i+4]), i + 4)) },
             '0'..='9' => { continue; },
             _ => { break; }
         }
@@ -123,30 +131,59 @@ fn _is_repeat(s: &str) -> Option<(usize, TokenType)> {
 }
 
 
-fn _is_equivalence(s: &str) -> Option<(usize, TokenType)> {
+fn _is_equivalence(s: &str) -> Option<(Token, usize)> {
+    use TokenType::{Equivalence};
+
     if s.len() >= 5 && &s[..2] == "[=" && &s[3..5] == "=]" {
-        return Some((5, TokenType::Equivalence));
+        return Some((Token::new(Equivalence, &s[..5]), 5));
     }
 
     None
 }
 
 
-fn _is_class(s: &str) -> Option<(usize, TokenType)> {
+fn _is_class(s: &str) -> Option<(Token, usize)> {
+    use TokenType::{CharClass};
+
     if s.len() >= 10 && &s[..10] == "[:xdigit:]" {
-        return Some((10, TokenType::CharClass));
+        return Some((Token::new(CharClass, "[:xdigit:]"), 10));
     } else if s.len() >= 9 {
         if &s[..2] == "[:" && &s[7..9] == ":]" {
             match &s[2..7] {
                 "alnum" | "alpha" | "blank" | "cntrl" | "digit" | "graph" |
                 "lower" | "print" | "punct" | "space" | "upper"
-                => { return Some((9, TokenType::CharClass)); },
+                => { return Some((Token::new(CharClass, &s[..9]), 9)); },
                 _ => ()
             }
         }
     }
 
     None
+}
+
+
+fn _tokenize_backslash<'a>(s: &'a str) -> (Token, usize) {
+    use TokenType::{Literal};
+    let mut chars = s.chars();
+
+    chars.next();
+
+    match chars.next() {
+        Some('0'..='7') => (),
+        Some(_) => { return (Token::new(Literal, unescape(&s[..2])), 2); },
+        None => { return (Token::new(Literal, s), 1); }
+    }
+
+    let mut i = 2;
+
+    for c in chars {
+        match c {
+            '0'..='7' if i <= 3 => { i += 1 },
+            _ => { break; }
+        }
+    }
+
+    (Token::new(Literal, octal_to_str(&s[..i]).to_string()), i)
 }
 
 
@@ -198,30 +235,6 @@ fn octal_to_str(s: &str) -> char {
 }
 
 
-fn _tokenize_backslash<'a>(s: &'a str) -> (Cow<'a, str>, TokenType, usize) {
-    let mut chars = s.chars();
-
-    chars.next();
-
-    match chars.next() {
-        Some('0'..='7') => (),
-        Some(_) => { return (unescape(&s[..2]).into(), TokenType::Literal, 2); },
-        None => { return (s.into(), TokenType::Literal, 1); }
-    }
-
-    let mut i = 2;
-
-    for c in chars {
-        match c {
-            '0'..='7' if i <= 3 => { i += 1 },
-            _ => { break; }
-        }
-    }
-
-    (octal_to_str(&s[..i]).to_string().into(), TokenType::Literal, i)
-}
-
-
 pub fn tokenize(s: &str) -> Lexer {
-    Lexer { s: s, next_token: None }
+    Lexer { s: s, tokens: vec![] }
 }
