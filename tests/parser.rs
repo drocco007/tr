@@ -1,3 +1,5 @@
+use rstest::rstest;
+
 use tr::parser::parse;
 
 
@@ -58,4 +60,22 @@ fn tab_escape_should_produce_tab() {
 #[test]
 fn vertical_tab_escape_should_produce_vertical_tab() {
     assert_eq!("\u{0b}", parse(r"\v"));
+}
+
+
+#[rstest(
+    case => [("a-g", "abcdefg"), (" -/", " !\"#$%&'()*+,-./"),
+             ("0-9", "0123456789"), ("2-5", "2345"), ("B-D6-8", "BCD678"),
+             ("9-@", "9:;<=>?@")]
+)]
+fn character_range_should_produce_characters(case: (&str, &str)) {
+    let (range, expected) = case;
+
+    assert_eq!(expected, parse(range));
+}
+
+
+#[test]
+fn character_range_used_as_verbose_spelling_for_character() {
+    assert_eq!("5", parse("5-5"));
 }

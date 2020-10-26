@@ -54,6 +54,13 @@ pub fn rpad_last<'a>(s: &'a str, n: usize) -> Cow<'a, str> {
 }
 
 
+fn expand_range(s: &str) -> String {
+    let s = s.chars().collect::<Vec<char>>();
+
+    std::ops::RangeInclusive::new(s[0], s[2]).collect::<String>()
+}
+
+
 pub fn parse<'a>(s: &'a str) -> Cow<'a, str> {
     if s.is_empty() {
         return s.into();
@@ -71,6 +78,7 @@ pub fn parse<'a>(s: &'a str) -> Cow<'a, str> {
     for token in std::iter::once(token).chain(tokens) {
         match token.token_type {
             Literal => output.push_str(&token.token),
+            CharRange => output.push_str(&expand_range(&token.token)),
             _ => ()
         }
     }
