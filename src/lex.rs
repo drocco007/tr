@@ -25,18 +25,16 @@ pub struct Token {
 }
 
 
-impl<'a> Iterator for Lexer<'a> {
-    type Item = Token;
+impl Token {
+    fn new<S>(token_type: TokenType, token: S) -> Token where S: Into<String> {
+        Token { token_type: token_type, token: token.into() }
+    }
+}
 
-    fn next(&mut self) -> Option<Token> {
-        if self.next_token != None {
-            let result = std::mem::replace(&mut self.next_token, None);
-            return result;
-        } else if self.s.is_empty() {
-            return None;
-        }
 
-        let mut result = Token {token_type: TokenType::Literal, token: self.s.to_owned() };
+impl<'a> Lexer<'a> {
+    fn _find_next(&mut self) -> Option<Token> {
+        let mut result = Token::new(TokenType::Literal, self.s);
         let mut consumed = 0;
 
         for (i, c) in self.s.chars().enumerate() {
@@ -44,13 +42,10 @@ impl<'a> Iterator for Lexer<'a> {
                 '\\' => {
                     if i == 0 {
                         let (token, token_type, length) = _tokenize_backslash(self.s);
-                        result = Token { token: token.into_owned(), token_type: token_type };
+                        result = Token::new(token_type, token);
                         consumed = length;
                     } else {
-                        result.token = self.s[..i].to_owned();
-                        let (token, token_type, length) = _tokenize_backslash(&self.s[i..]);
-                        consumed = i+length;
-                        self.next_token = Some(Token { token_type: token_type, token: token.into_owned() } );
+                        result = Token::new(TokenType::Literal, &self.s[..i]);
                     }
 
                     break;
@@ -60,12 +55,11 @@ impl<'a> Iterator for Lexer<'a> {
                         consumed += 1;
                         continue;
                     } else if i == 1 {
-                        result.token = self.s[..i+2].to_owned();
-                        result.token_type = TokenType::CharRange;
+                        result = Token::new(TokenType::CharRange, &self.s[..i+2]);
                         consumed += 2;
                     } else {
-                        result.token = self.s[..i-1].to_owned();
-                        self.next_token = Some(Token { token_type: TokenType::CharRange, token: self.s[i-1..i+2].to_owned() } );
+                        result = Token::new(TokenType::Literal, &self.s[..i-1]);
+                        self.next_token = Some(Token::new(TokenType::CharRange, &self.s[i-1..i+2]));
                         consumed += 2;
                     }
 
@@ -74,11 +68,10 @@ impl<'a> Iterator for Lexer<'a> {
                 '[' => {
                     if let Some((j, token_type)) = _is_equivalence(&self.s[i..]).or_else(|| _is_repeat(&self.s[i..])).or_else(|| _is_class(&self.s[i..])) {
                         if i == 0 {
-                            result.token = self.s[..j].to_owned();
-                            result.token_type = token_type;
+                            result = Token::new(token_type, &self.s[..j]);
                         } else {
-                            result.token = self.s[..i].to_owned();
-                            self.next_token = Some(Token { token_type: token_type, token: self.s[i..i+j].to_owned() } );
+                            result = Token::new(TokenType::Literal, &self.s[..i]);
+                            self.next_token = Some(Token::new(token_type, &self.s[i..i+j]));
                         }
 
                         consumed += j;
@@ -94,6 +87,21 @@ impl<'a> Iterator for Lexer<'a> {
         self.s = &self.s[consumed..];
 
         Some(result)
+    }
+}
+
+
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Token> {
+        if self.next_token != None {
+            return std::mem::replace(&mut self.next_token, None);
+        } else if self.s.is_empty() {
+            return None;
+        } else {
+            return self._find_next();
+        }
     }
 }
 
