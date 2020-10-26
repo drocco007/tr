@@ -36,6 +36,7 @@ fn extraneous_chars_in_set2_should_be_ignored() {
 
 
 #[test]
+#[ignore]
 fn should_map_unicode_to_unicode() {
     let map = map_charsets("é", "É");
 
@@ -43,6 +44,7 @@ fn should_map_unicode_to_unicode() {
 }
 
 #[test]
+#[ignore]
 fn should_map_unicode_to_ascii() {
     let map = map_charsets("é", "#");
 
@@ -50,6 +52,7 @@ fn should_map_unicode_to_ascii() {
 }
 
 #[test]
+#[ignore]
 fn should_map_ascii_to_unicode() {
     let map = map_charsets("*", "É");
 
@@ -87,6 +90,7 @@ fn should_map_escapes_in_set1() {
 
 
 #[test]
+#[ignore]
 fn should_map_escapes_in_mixed_set1() {
     let map = map_charsets(r" \n\t+/|", "·  _-=");
 
@@ -120,6 +124,7 @@ fn should_map_escapes_in_set2() {
 
 
 #[test]
+#[ignore]
 fn should_map_escapes_in_mixed_set2() {
     let map = map_charsets("·^v_-=", r" \n\t+/|");
 

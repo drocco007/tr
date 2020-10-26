@@ -1,6 +1,9 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
+use crate::lex::tokenize;
+use crate::lex::TokenType::{*};
+
 
 /// Create a mapping from each char in set1 to the corresponding char
 /// in set2.
@@ -51,70 +54,24 @@ pub fn rpad_last<'a>(s: &'a str, n: usize) -> Cow<'a, str> {
 }
 
 
-/// Replace escape sequence with the corresponding char. s is assumed to
-/// be a 2 character string
-///
-///    \\     backslash
-///    \a     audible BEL
-///    \b     backspace
-///    \f     form feed
-///    \n     new line
-///    \r     return
-///    \t     horizontal tab
-///    \v     vertical tab
-///
-/// A backslash followed by any other char is replaced with that char; the
-/// backslash is consumed and not reflected in the output.
-///
-/// # Examples
-///
-/// ```
-/// assert_eq!("\n", tr::parser::unescape("\\n"));
-/// assert_eq!("\n", tr::parser::unescape(r"\n"));
-/// assert_eq!("x", tr::parser::unescape(r"\x"));
-/// ```
-pub fn unescape(s: &str) -> &str {
-    match s {
-        r"\a" => "\u{07}",
-        r"\b" => "\u{08}",
-        r"\f" => "\u{0c}",
-        r"\n" => "\n",
-        r"\r" => "\r",
-        r"\t" => "\t",
-        r"\v" => "\u{0b}",
-        _ => &s[1..]
-    }
-}
-
-
 pub fn parse<'a>(s: &'a str) -> Cow<'a, str> {
-    let (mut first, mut rest);
+    if s.is_empty() {
+        return s.into();
+    }
 
-    if let Some(index) = s.find(r"\") {
-        first = &s[..index];
-        rest = &s[index..];
-    } else {
+    let mut tokens = tokenize(s);
+    let token = tokens.next().unwrap();
+
+    if token.token_type == Literal && token.token == s {
         return s.into();
     }
 
     let mut output = String::with_capacity(s.len());
 
-    loop {
-        output.push_str(first);
-
-        let c = &rest[..2];
-
-        // consume the char from the input
-        rest = &rest[2..];
-
-        output.push_str(unescape(c));
-
-        if let Some(index) = rest.find(r"\") {
-            first = &rest[..index];
-            rest = &rest[index..];
-        } else {
-            output.push_str(rest);
-            break;
+    for token in std::iter::once(token).chain(tokens) {
+        match token.token_type {
+            Literal => output.push_str(&token.token),
+            _ => ()
         }
     }
 
