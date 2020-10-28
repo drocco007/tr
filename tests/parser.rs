@@ -79,3 +79,80 @@ fn character_range_should_produce_characters(case: (&str, &str)) {
 fn character_range_used_as_verbose_spelling_for_character() {
     assert_eq!("5", parse("5-5"));
 }
+
+
+#[test]
+fn alnum_class_should_expand() {
+    assert_eq!("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+               parse("[:alnum:]"));
+}
+
+
+#[test]
+fn alpha_class_should_expand() {
+    assert_eq!("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+               parse("[:alpha:]"));
+}
+
+
+#[test]
+fn blank_class_should_expand() {
+    assert_eq!("\t ", parse("[:blank:]"));
+}
+
+
+#[test]
+fn cntrl_class_should_expand() {
+    assert_eq!("\u{0}\u{1}\u{2}\u{3}\u{4}\u{5}\u{6}\u{7}\u{8}\t\n\u{b}\u{c}\r\u{e}\u{f}\u{10}\u{11}\u{12}\u{13}\u{14}\u{15}\u{16}\u{17}\u{18}\u{19}\u{1a}\u{1b}\u{1c}\u{1d}\u{1e}\u{1f}", parse("[:cntrl:]"));
+}
+
+
+#[test]
+fn digit_class_should_expand() {
+    assert_eq!("0123456789", parse("[:digit:]"));
+}
+
+
+#[test]
+fn graph_class_should_expand() {
+    assert_eq!("!\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+               parse("[:graph:]"));
+}
+
+
+#[test]
+fn lower_class_should_expand() {
+    assert_eq!("abcdefghijklmnopqrstuvwxyz", parse("[:lower:]"));
+}
+
+
+#[test]
+fn print_class_should_expand() {
+    assert_eq!(" !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+               parse("[:print:]"));
+}
+
+
+#[test]
+fn punct_class_should_expand() {
+    // $ python3 -c 'for i in range(128): print(chr(i), end="")' | tr -cd '[:punct:]'
+    assert_eq!("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", parse("[:punct:]"));
+}
+
+
+#[test]
+fn space_class_should_expand() {
+    assert_eq!("\t\n\u{b}\u{c}\r ", parse("[:space:]"));
+}
+
+
+#[test]
+fn upper_class_should_expand() {
+    assert_eq!("ABCDEFGHIJKLMNOPQRSTUVWXYZ", parse("[:upper:]"));
+}
+
+
+#[test]
+fn xdigit_class_should_expand() {
+    assert_eq!("0123456789ABCDEFabcdef", parse("[:xdigit:]"));
+}

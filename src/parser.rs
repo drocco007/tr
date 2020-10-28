@@ -61,6 +61,30 @@ fn expand_range(s: &str) -> String {
 }
 
 
+fn expand_class(s: &str) -> String {
+    match s {
+        "[:alnum:]" => "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+        "[:alpha:]" => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+        "[:blank:]" => "\t ",
+
+        // python3 -c 'for i in range(32): print(chr(i), end="")' | tr '[:cntrl:]' '.'
+        "[:cntrl:]" => "\u{0}\u{1}\u{2}\u{3}\u{4}\u{5}\u{6}\u{7}\u{8}\t\n\u{b}\u{c}\r\u{e}\u{f}\u{10}\u{11}\u{12}\u{13}\u{14}\u{15}\u{16}\u{17}\u{18}\u{19}\u{1a}\u{1b}\u{1c}\u{1d}\u{1e}\u{1f}",
+        "[:digit:]" => "0123456789",
+        "[:graph:]" => "!\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+        "[:lower:]" => "abcdefghijklmnopqrstuvwxyz",
+
+        // apparently tab is not in this list: echo -ne '\t' | tr '[:print:]' '.' | xxd
+        // 00000000: 09
+        "[:print:]" => " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+        "[:punct:]" => "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
+        "[:space:]" => "\t\n\u{b}\u{c}\r ",
+        "[:upper:]" => "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "[:xdigit:]" => "0123456789ABCDEFabcdef",
+        _ => panic!("tried to expand non class {:?}", s)
+    }.into()
+}
+
+
 pub fn parse<'a>(s: &'a str) -> Cow<'a, str> {
     if s.is_empty() {
         return s.into();
@@ -79,6 +103,7 @@ pub fn parse<'a>(s: &'a str) -> Cow<'a, str> {
         match token.token_type {
             Literal => output.push_str(&token.token),
             CharRange => output.push_str(&expand_range(&token.token)),
+            CharClass => output.push_str(&expand_class(&token.token)),
             _ => ()
         }
     }
