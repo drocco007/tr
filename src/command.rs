@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 use std::io::{BufRead,Stdin,StdinLock,Write};
 
-use unicode_reader::CodePoints;
-
 use crate::arg_parser::{Config, parse_args};
 use crate::parser::{map_charsets, parse};
 
