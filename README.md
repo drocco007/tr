@@ -5,7 +5,7 @@ and writing the result to stdout.
 
 This `tr` interprets Unicode graphemes as individual characters:
 
-    $ echo Ad Qh | target/release/tr 'shdc' '♠♡♢♣'
-    A♢ Q♡
-    $ echo Ad Qh | tr 'shdc' '♠♡♢♣'
+    $ echo As Qh | target/release/tr 'shdc' '♠♡♢♣'
+    A♠ Q♡
+    $ echo As Qh | tr 'shdc' '♠♡♢♣'
     A Q
