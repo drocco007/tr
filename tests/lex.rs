@@ -360,3 +360,14 @@ fn complicated_scenario() {
     assert_eq!(tokens, expected);
     assert_eq!(token_types, expected_types);
 }
+
+
+#[test]
+fn unicode_sequence_should_parse() {
+    let s = "· t_=-";
+
+    let token = tokenize(s).next().unwrap();
+
+    assert_eq!(token.token_type, Literal);
+    assert_eq!(token.token, s);
+}

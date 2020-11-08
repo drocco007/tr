@@ -156,3 +156,9 @@ fn upper_class_should_expand() {
 fn xdigit_class_should_expand() {
     assert_eq!("0123456789ABCDEFabcdef", parse("[:xdigit:]"));
 }
+
+
+// tr actual:
+//
+//      $ tr '_-=' '012'
+//      tr: range-endpoints of '_-=' are in reverse collating sequence order

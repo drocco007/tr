@@ -1,3 +1,8 @@
+use std::mem::replace;
+
+use bstr::{ByteSlice};
+
+
 #[derive(Debug)]
 pub struct Lexer<'a> {
     s: &'a str,
@@ -52,59 +57,73 @@ impl<'a> Lexer<'a> {
 
     fn scan(&mut self) {
         let mut consumed = 0;
+        let mut scanned = String::new();
+        let mut range_pending = false;
 
-        for (i, c) in self.s.chars().enumerate() {
+        for c in self.s.as_bytes().graphemes() {
+            if range_pending {
+                // fixme oof this is rough
+                let (dash, first) = (scanned.pop().unwrap().to_string(), scanned.pop().unwrap().to_string());
+
+                if !scanned.is_empty() {
+                    consumed = scanned.len();
+                    self.emit(Token::new(TokenType::Literal, replace(& mut scanned, String::new())));
+                }
+
+                consumed += 3;
+                self.emit(Token::new(TokenType::CharRange, [first, dash, c.to_string()].join("")));
+                break;
+            }
+
             match c {
-                '\\' => {
-                    if i != 0 {
-                        self.emit(Token::new(TokenType::Literal, &self.s[..i]));
+                "\\" => {
+                    if !scanned.is_empty() {
+                        consumed = scanned.len();
+                        self.emit(Token::new(TokenType::Literal, replace(& mut scanned, String::new())));
                     }
 
-                    let (token, length) = _tokenize_backslash(&self.s[i..]);
+                    let (token, length) = _tokenize_backslash(&self.s[consumed..]);
                     self.emit(token);
-                    consumed = i+length;
+                    consumed += length;
 
                     break;
                 },
-                '-' => {
-                    if i == 0 || i == self.s.len() - 1 {
-                        consumed += 1;
-                        continue;
+                "-" => {
+                    if !scanned.is_empty() {
+                        range_pending = true;
                     }
 
-                    if i != 1 {
-                        self.emit(Token::new(TokenType::Literal, &self.s[..i-1]));
-                    }
-
-                    self.emit(Token::new(TokenType::CharRange, &self.s[i-1..i+2]));
-                    consumed += 2;
-
-                    break;
+                    scanned.push_str(c);
+                    continue;
                 },
-                '[' => {
-                    let success = _is_equivalence(&self.s[i..])
-                        .or_else(|| _is_repeat(&self.s[i..]))
-                        .or_else(|| _is_class(&self.s[i..]));
+                "[" => {
+                    let start = scanned.len();
 
-                    if let Some((token, j)) = success {
-                        if i != 0 {
-                            self.emit(Token::new(TokenType::Literal, &self.s[..i]));
+                    let success = _is_equivalence(&self.s[start..])
+                        .or_else(|| _is_repeat(&self.s[start..]))
+                        .or_else(|| _is_class(&self.s[start..]));
+
+                    if let Some((token, length)) = success {
+                        if !scanned.is_empty() {
+                            consumed = scanned.len();
+                            self.emit(Token::new(TokenType::Literal, replace(& mut scanned, String::new())));
                         }
 
                         self.emit(token);
-                        consumed += j;
+                        consumed += length;
 
                         break;
                     } else {
-                        consumed += 1;
+                        scanned.push_str(c);
                     }
                 },
-                _ => { consumed += 1; }
+                _ => { scanned.push_str(c); }
             }
         }
 
         if self.tokens.is_empty() {
-            self.emit(Token::new(TokenType::Literal, self.s));
+            consumed = scanned.len();
+            self.emit(Token::new(TokenType::Literal, scanned));
         }
 
         self.s = &self.s[consumed..];
@@ -112,6 +131,7 @@ impl<'a> Lexer<'a> {
 }
 
 
+// TODO: support Unicode repeats
 fn _is_repeat(s: &str) -> Option<(Token, usize)> {
     use TokenType::{CharRepeat};
 

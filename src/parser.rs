@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
+use bstr::{ByteSlice};
+
 use crate::lex::tokenize;
 use crate::lex::TokenType::{*};
 
@@ -13,14 +15,12 @@ use crate::lex::TokenType::{*};
 /// ```
 /// let map = tr::parser::map_charsets("abcde", "zyxwv");
 ///
-/// assert_eq!(&'x', map.get(&'c').unwrap());
+/// assert_eq!(&"x", map.get("c").unwrap());
 /// ```
-pub fn map_charsets(set1: &str, set2: &str) -> HashMap<char, char> {
-    let (set1, set2) = (parse(set1), parse(set2));
-
-    let set2 = rpad_last(&set2, set1.len());
-
-    set1.chars().zip(set2.chars()).collect()
+pub fn map_charsets<'a>(set1: &'a str, set2: &'a str) -> HashMap<String, String> {
+    parse(set1).as_bytes().graphemes().zip(parse(set2).as_bytes().graphemes())
+        .map(|(c1, c2)| (c1.to_string(), c2.to_string()))
+        .collect()
 }
 
 

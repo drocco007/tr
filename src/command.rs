@@ -1,8 +1,10 @@
 use std::collections::HashSet;
-use std::io::{BufRead,Stdin,StdinLock,Write};
+use std::io::{BufRead,Write};
 
 use crate::arg_parser::{Config, parse_args};
-use crate::parser::{map_charsets, parse};
+use crate::parser::{parse,map_charsets};
+
+use bstr::ByteSlice;
 
 
 pub fn show_help() {
@@ -17,7 +19,7 @@ pub fn show_version() {
 
 pub fn process<F>(mut op: F) -> Result<(), std::io::Error>
 where
-    F: FnMut(u8) -> Option<u8>
+    F: FnMut(&str) -> Option<String>
 {
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
@@ -29,9 +31,11 @@ where
     let mut length = buffer.len();
 
     while !buffer.is_empty() {
-        for b in buffer {
-            match op(*b) {
-                Some(c) => { stdout.write(&[c])?; }
+        // FIXME: test & handle non-utf-8 input
+        // FIXME: handle case where buffer splits a grapheme
+        for b in buffer.graphemes() {
+            match op(b) {
+                Some(c) => { stdout.write(c.as_bytes())?; }
                 None => continue
             }
         }
@@ -48,30 +52,25 @@ where
 
 
 pub fn translate(config: &Config) -> Result<(), std::io::Error> {
-    // FIXME: duplicates map_charsets until we convert everything over
-    // to unicode
-    let (set1, set2) = (parse(&config.set1), parse(&config.set2));
-
-    let set2 = crate::parser::rpad_last(&set2, set1.len());
-
-    use std::collections::HashMap;
-    let map = set1.bytes().zip(set2.bytes()).collect::<HashMap<u8,u8>>();
+    let map = map_charsets(&config.set1, &config.set2);
 
     process(|b| {
-        match map.get(&b) {
-            Some(&c) => Some(c),
-            _ => Some(b)
+        match map.get(b) {
+            Some(c) => Some(c.to_string()),
+            _ => Some(b.to_string())
         }
     })
 }
 
 
 pub fn delete(config: &Config) -> Result<(), std::io::Error> {
-    let set = parse(&config.set1).bytes().collect::<HashSet<u8>>();
+    let set = parse(&config.set1).as_bytes().graphemes()
+        .map(|c| c.to_string())
+        .collect::<HashSet<_>>();
 
-    process(|b| match set.contains(&b) {
+    process(|b| match set.contains(b) {
         true => None,
-        false => Some(b)
+        false => Some(b.to_string())
     })
 }
 
