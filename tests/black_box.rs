@@ -27,7 +27,6 @@ fn should_say_hello_loudly() {
 
 
 #[test]
-#[ignore]  // implement squeeze
 fn should_squeeze_newlines() {
     let output = _tr(vec!["tr", "-s", "\n"], "\n\n\n");
 
@@ -40,6 +39,24 @@ fn should_translate_plain_suit_to_fancy() {
     let output = _tr(vec!["tr", "shdc", "♠♡♢♣"], "As Qh");
 
     assert_eq!(output, "A♠ Q♡");
+}
+
+
+#[test]
+#[ignore]  // FIXME: rpad_last broken by grapheme handling
+fn should_pad_last_of_set2_to_length_of_set1() {
+    let output = _tr(vec!["tr", "[:space:]", "\n"], "                   .");
+
+    assert_eq!(output, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n.");
+}
+
+
+#[test]
+#[ignore]  // FIXME: handle explicit repeats
+fn should_pad_set2_with_explicit_repeat() {
+    let output = _tr(vec!["tr", "a-h", "a[.*]h"], "abcdefgh");
+
+    assert_eq!(output, "a......h");
 }
 
 
@@ -84,9 +101,48 @@ fn should_delete_nothing() {
 
 
 #[test]
-#[ignore]  // implement squeeze delete
 fn squeeze_delete_should_remove_then_squeeze() {
-    let output = _tr(vec!["tr", "-d", "abcd"], "abracadabra");
+    let output = _tr(vec!["tr", "-ds", "abcd", "r"], "abracadabra");
 
     assert_eq!(output, "r");
+}
+
+
+#[test]
+fn simple_squeeze_should() {
+    let output = _tr(vec!["tr", "-s", "*"], "**");
+
+    assert_eq!(output, "*");
+}
+
+
+#[test]
+fn simple_squeeze_should_squeeze_multiple() {
+    let output = _tr(vec!["tr", "-s", "*"], "**********");
+
+    assert_eq!(output, "*");
+}
+
+
+#[test]
+fn simple_squeeze_should_preserve_multiple_not_in_set() {
+    let output = _tr(vec!["tr", "-s", "."], "**********");
+
+    assert_eq!(output, "**********");
+}
+
+
+#[test]
+fn simple_squeeze_should_squeeze_all_occurrences_of_set1() {
+    let output = _tr(vec!["tr", "-s", "--", "-.*"], "----..******");
+
+    assert_eq!(output, "-.*");
+}
+
+
+#[test]
+fn should_perform_complement_squeeze() {
+    let output = _tr(vec!["tr", "-sc", "ab"], "aassddff");
+
+    assert_eq!(output, "aasdf");
 }

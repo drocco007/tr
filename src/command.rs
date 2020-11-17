@@ -103,6 +103,51 @@ pub fn delete(config: &Config) -> Box<dyn FnMut(&str) -> Option<String>> {
 }
 
 
+/// Squeeze repeat graphemes according to `config`.
+///
+/// Given a Config, return a function will squeeze repeated graphemes
+/// from the last defined set occurring in the input.
+///
+/// `config.complement`, if `true`, inverts the sense of the test,
+/// squeezing graphemes that do _not_ appear in the last defined set.
+pub fn squeeze(config: &Config) -> Box<dyn FnMut(&str) -> Option<String>> {
+    let set = match config.set2.is_empty() {
+        true => &config.set1,
+        false => &config.set2
+    };
+
+    let set = parse(set).as_bytes().graphemes()
+        .map(|c| c.to_string())
+        .collect::<HashSet<_>>();
+
+    let mut test: Box<dyn FnMut(&str) -> bool> = match config.complement {
+        false => Box::new(move |b| set.contains(b)),
+        true => Box::new(move |b| !set.contains(b))
+    };
+
+    let mut last = String::new();
+
+    Box::new(move |b| match test(b) && b == last {
+        true => None,
+        false => {
+            last = b.to_string();
+            return Some(b.to_string());
+        }
+    })
+}
+
+
+pub fn squeeze_delete(config: &Config) -> Box<dyn FnMut(&str) -> Option<String>> {
+    let mut d = delete(&config);
+    let mut s = squeeze(&config);
+
+    Box::new(move |b| match d(b) {
+        Some(b) => s(&b),
+        None => None
+    })
+}
+
+
 /// `tr` program entry.
 ///
 /// Given an iterator of command line arguments, process the arguments into
@@ -132,9 +177,14 @@ where
         show_version();
     } else {
         let op = if config.delete {
-            delete(&config)
-        } else {
+            match config.squeeze {
+                true => squeeze_delete(&config),
+                false => delete(&config)
+            }
+        } else if !config.set2.is_empty() {
             translate(&config)
+        } else {
+            squeeze(&config)
         };
 
         let mut tr = Tr { reader: reader, writer: writer, op: op };
