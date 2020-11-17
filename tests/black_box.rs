@@ -41,3 +41,52 @@ fn should_translate_plain_suit_to_fancy() {
 
     assert_eq!(output, "A♠ Q♡");
 }
+
+
+#[test]
+fn should_perform_simple_delete() {
+    let output = _tr(vec!["tr", "-d", "a"], "abcde");
+
+    assert_eq!(output, "bcde");
+}
+
+
+#[test]
+fn delete_should_remove_all_occurrences() {
+    let output = _tr(vec!["tr", "-d", "a"], "abracadabra");
+
+    assert_eq!(output, "brcdbr");
+}
+
+
+#[test]
+fn delete_should_remove_all_occurrences_of_all_set1() {
+    let output = _tr(vec!["tr", "-d", "abcd"], "abracadabra");
+
+    assert_eq!(output, "rr");
+}
+
+
+#[test]
+fn should_perform_complement_delete() {
+    let output = _tr(vec!["tr", "-dc", "a"], "abcde");
+
+    assert_eq!(output, "a");
+}
+
+
+#[test]
+fn should_delete_nothing() {
+    let output = _tr(vec!["tr", "-d", "a"], "");
+
+    assert_eq!(output, "");
+}
+
+
+#[test]
+#[ignore]  // implement squeeze delete
+fn squeeze_delete_should_remove_then_squeeze() {
+    let output = _tr(vec!["tr", "-d", "abcd"], "abracadabra");
+
+    assert_eq!(output, "r");
+}

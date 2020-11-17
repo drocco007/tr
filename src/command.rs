@@ -82,12 +82,21 @@ pub fn translate(config: &Config) -> Box<dyn FnMut(&str) -> Option<String>> {
 /// Given a Config, return a function that accepts a Unicode grapheme,
 /// returning None if the grapheme appears in `config.set1`, otherwise
 /// returning the original grapheme.
+///
+/// `config.complement`, if `true`, inverts the sense of the test,
+/// returning graphemes that do _not_ appear in `config.set1` and None
+/// otherwise.
 pub fn delete(config: &Config) -> Box<dyn FnMut(&str) -> Option<String>> {
     let set = parse(&config.set1).as_bytes().graphemes()
         .map(|c| c.to_string())
         .collect::<HashSet<_>>();
 
-    Box::new(move |b| match set.contains(b) {
+    let mut test: Box<dyn FnMut(&str) -> bool> = match config.complement {
+        false => Box::new(move |b| set.contains(b)),
+        true => Box::new(move |b| !set.contains(b))
+    };
+
+    Box::new(move |b| match test(b) {
         true => None,
         false => Some(b.to_string())
     })
