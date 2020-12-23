@@ -43,7 +43,15 @@ fn should_translate_plain_suit_to_fancy() {
 
 
 #[test]
-#[ignore]  // FIXME: rpad_last broken by grapheme handling
+fn should_expand_simple_repeat() {
+    let output = _tr(vec!["tr", "dr", "[l*2]"], "drama");
+
+    assert_eq!(output, "llama");
+}
+
+
+#[test]
+#[ignore]  // FIXME: handle repeats
 fn should_pad_last_of_set2_to_length_of_set1() {
     let output = _tr(vec!["tr", "[:space:]", "\n"], "                   .");
 
@@ -52,11 +60,29 @@ fn should_pad_last_of_set2_to_length_of_set1() {
 
 
 #[test]
-#[ignore]  // FIXME: handle explicit repeats
-fn should_pad_set2_with_explicit_repeat() {
+#[ignore]  // FIXME: handle repeats
+fn should_pad_set2_with_interior_repeat() {
     let output = _tr(vec!["tr", "a-h", "a[.*]h"], "abcdefgh");
 
     assert_eq!(output, "a......h");
+}
+
+
+#[test]
+#[ignore]  // FIXME: handle repeats
+fn should_pad_set2_with_mixed_explicit_and_implicit_repeat() {
+    let output = _tr(vec!["tr", "qwertyuiop", "[.*3]a"], "qwertyuiop");
+
+    assert_eq!(output, "...aaaaaaa");
+}
+
+
+#[test]
+#[ignore]  // FIXME: handle repeats
+fn should_pad_set2_with_repeat_length_specified_in_octal() {
+    let output = _tr(vec!["tr", "0-9a-f", "[.*010]89abcdef"], "0123456789abcdef");
+
+    assert_eq!(output, ".......89abcdef");
 }
 
 
@@ -81,6 +107,14 @@ fn delete_should_remove_all_occurrences_of_all_set1() {
     let output = _tr(vec!["tr", "-d", "abcd"], "abracadabra");
 
     assert_eq!(output, "rr");
+}
+
+
+#[test]
+fn delete_should_remove_entire_input() {
+    let output = _tr(vec!["tr", "-d", "abcdr"], "abracadabra");
+
+    assert_eq!(output, "");
 }
 
 

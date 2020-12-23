@@ -85,6 +85,21 @@ fn expand_class(s: &str) -> String {
 }
 
 
+fn expand_repeat(s: &str) -> String {
+    let b = s.as_bytes();
+    let b = &b[1..b.len()-1];
+
+    let v: Vec<_> = b.splitn_str(2, "*").collect();
+    println!("{:?}", v);
+
+
+    let c = std::str::from_utf8(v[0]).unwrap();
+    let n = std::str::from_utf8(v[1]).unwrap().parse::<usize>().unwrap();
+
+    c.repeat(n)
+}
+
+
 pub fn parse<'a>(s: &'a str) -> Cow<'a, str> {
     if s.is_empty() {
         return s.into();
@@ -104,6 +119,7 @@ pub fn parse<'a>(s: &'a str) -> Cow<'a, str> {
             Literal => output.push_str(&token.token),
             CharRange => output.push_str(&expand_range(&token.token)),
             CharClass => output.push_str(&expand_class(&token.token)),
+            CharRepeat => output.push_str(&expand_repeat(&token.token)),
             _ => ()
         }
     }
